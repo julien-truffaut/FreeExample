@@ -1,4 +1,4 @@
-package freeex
+package free
 
 import org.scalatest.{Matchers, WordSpec}
 
