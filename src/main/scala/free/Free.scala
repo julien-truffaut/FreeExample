@@ -36,7 +36,10 @@ object Free {
   case class Return[F[_], A](a: A) extends Free[F, A]
   case class Bind[F[_], I, A](fi: F[I], k: I => Free[F, A]) extends Free[F, A]
 
-  def lift[F[_],A](fa: F[A]): Free[F,A] =
+  def pure[F[_], A](a: A): Free[F, A] =
+    Return(a)
+
+  def lift[F[_],A](fa: F[A]): Free[F, A] =
     Bind(fa, (a: A) => Return(a))
 
   implicit def monadForFree[F[_]]: Monad[({type λ[α] = Free[F, α]})#λ] = // Free[F, ?]
@@ -44,7 +47,8 @@ object Free {
       def flatMap[A, B](fa: Free[F, A])(f: A => Free[F, B]): Free[F, B] =
         fa.flatMap(f)
 
-      def pure[A](a: A): Free[F, A] = Return(a)
+      def pure[A](a: A): Free[F, A] =
+        Free.pure(a)
     }
 
 }
