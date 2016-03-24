@@ -2,23 +2,20 @@ package free
 
 import free.Free.{Bind, Return}
 
-import scalaz.concurrent.Task
+import scalaz.effect.IO
 
 object Example extends App {
 
-  def runFreeTask(f: Free[Task, Unit]): Unit = f match {
+  def runFreeIO(f: Free[IO, Unit]): Unit = f match {
     case Return(a)   => a
-    case Bind(fi, k) => fi.map(i => runFreeTask(k(i))).run
+    case Bind(fi, k) => fi.map(i => runFreeIO(k(i))).unsafePerformIO
   }
 
-  val interactToTask: NaturalTransformation[Interact, Task] = new NaturalTransformation[Interact, Task] {
+  val interactToIO: NaturalTransformation[Interact, IO] = new NaturalTransformation[Interact, IO] {
     import scala.io.StdIn
-    def apply[A](fa: Interact[A]): Task[A] = fa match {
-      case Ask(prompt, f) => Task.delay(f(StdIn.readLine(prompt)))
-      case Tell(msg, a)   => Task.delay{
-        println(msg)
-        a
-      }
+    def apply[A](fa: Interact[A]): IO[A] = fa match {
+      case Ask(prompt, f) => IO(f(StdIn.readLine(prompt)))
+      case Tell(msg, a)   => IO(println(msg)).map(_ => a)
     }
   }
 
@@ -26,9 +23,9 @@ object Example extends App {
 
   val program: API[Unit] = for {
     _    <- tell("Hey")
-    name <- ask("What's your name")
+    name <- ask("What's your name ")
     _    <- tell(s"Your name is $name")
   } yield ()
 
-  runFreeTask(program.compile(interactToTask))
+  runFreeIO(program.compile(interactToIO))
 }
