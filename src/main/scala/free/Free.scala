@@ -11,35 +11,41 @@ package free
   * @tparam A
   */
 sealed trait Free[F[_], A] { // F ~ List Option Future
-  def flatMap[B](f: A => Free[F, B])(implicit ev: Functor[F]): Free[F, B] = this match {
-    case Return(a)   => f(a)
-    case Bind(fi, k) => Bind(fi, (i: Any) => k(i).flatMap(f))
-  }
+  import Free.{Return, Bind}
 
-  def map[B](f: A => B)(implicit ev: Functor[F]): Free[F, B] = flatMap(a => Return(f(a)))
+  def map[B](f: A => B): Free[F, B] =
+    flatMap(a => Return(f(a)))
 
-  def transform[G[_]](nat: NaturalTransformation[F, G]): Free[G, A] = this match {
-    case Return(a)   => Return(a)
-    case Bind(fi, k) => Bind(nat.apply(fi), (i: Any) => k(i).transform(nat))
-  }
+  def flatMap[B](f: A => Free[F, B]): Free[F, B] =
+    this match {
+      case Return(a)   => f(a)
+      case Bind(fi, k) => Bind(fi, (i: Any) => k(i).flatMap(f))
+    }
+
+  def compile[G[_]](nat: NaturalTransformation[F, G]): Free[G, A] =
+    this match {
+      case Return(a)   => Return(a)
+      case Bind(fi, k) => Bind(nat.apply(fi), (i: Any) => k(i).compile(nat))
+    }
+
+  def foldMap[M[_]](f: NaturalTransformation[F, M])(implicit M: Monad[M]): M[A] = ???
 }
 
-case class Return[F[_], A](a: A) extends Free[F, A]
-case class Bind[F[_], I, A](fi: F[I], k: I => Free[F, A]) extends Free[F, A]
-
 object Free {
+
+  case class Return[F[_], A](a: A) extends Free[F, A]
+  case class Bind[F[_], I, A](fi: F[I], k: I => Free[F, A]) extends Free[F, A]
+
   def lift[F[_],A](fa: F[A]): Free[F,A] =
     Bind(fa, (a: A) => Return(a))
 
-  implicit def monadForFree[F[_]](implicit ev: Functor[F]): Monad[({type λ[α] = Free[F, α]})#λ] = // Free[F, ?]
+  implicit def monadForFree[F[_]]: Monad[({type λ[α] = Free[F, α]})#λ] = // Free[F, ?]
     new Monad[({type λ[α] = Free[F, α]})#λ] {
       def flatMap[A, B](fa: Free[F, A])(f: A => Free[F, B]): Free[F, B] =
         fa.flatMap(f)
 
       def pure[A](a: A): Free[F, A] = Return(a)
     }
-
-
 
 }
 

@@ -1,5 +1,7 @@
 package free
 
+import free.Free.{Bind, Return}
+
 import scalaz.concurrent.Task
 
 object Example extends App {
@@ -28,5 +30,5 @@ object Example extends App {
     _    <- tell(s"Your name is $name")
   } yield ()
 
-  runFreeTask(program.transform(interactToTask))
+  runFreeTask(program.compile(interactToTask))
 }
